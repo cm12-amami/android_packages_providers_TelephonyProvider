@@ -40,6 +40,7 @@ import android.provider.Telephony;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
+import android.util.EventLog;
 import android.util.Log;
 import android.util.Xml;
 
@@ -57,6 +58,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.NumberFormatException;
+import java.util.function.Consumer;
 
 public class TelephonyProvider extends ContentProvider
 {
@@ -895,6 +897,23 @@ public class TelephonyProvider extends ContentProvider
         }
 
         if (match != URL_SIMINFO) {
+            // Determine if we need to do a check for fields in the selection
+            boolean selectionContainsSensitiveFields;
+            try {
+                selectionContainsSensitiveFields = containsSensitiveFields(selection);
+            } catch (Exception e) {
+                // Malformed sql, check permission anyway.
+                selectionContainsSensitiveFields = true;
+            }
+
+            if (selectionContainsSensitiveFields) {
+                try {
+                    checkPermission();
+                } catch (SecurityException e) {
+                    EventLog.writeEvent(0x534e4554, "124107808", Binder.getCallingUid());
+                    throw e;
+                }
+            }
             if (projectionIn != null) {
                 for (String column : projectionIn) {
                     if (Telephony.Carriers.TYPE.equals(column) ||
@@ -924,6 +943,21 @@ public class TelephonyProvider extends ContentProvider
         if (ret != null)
             ret.setNotificationUri(getContext().getContentResolver(), url);
         return ret;
+    }
+
+    private boolean containsSensitiveFields(String sqlStatement) {
+        try {
+            SqlTokenFinder.findTokens(sqlStatement, s -> {
+                switch (s) {
+                    case USER:
+                    case PASSWORD:
+                        throw new SecurityException();
+                }
+            });
+        } catch (SecurityException e) {
+            return true;
+        }
+        return false;
     }
 
     @Override
