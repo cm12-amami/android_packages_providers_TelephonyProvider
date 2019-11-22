@@ -17,8 +17,6 @@ package com.android.providers.telephony;
 
 import android.annotation.Nullable;
 
-import java.util.function.Consumer;
-
 /**
  * Simple SQL parser to check statements for usage of prohibited/sensitive fields. Mostly copied
  * from

@@ -58,7 +58,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.lang.NumberFormatException;
-import java.util.function.Consumer;
+
+import static android.provider.Telephony.Carriers.*;
 
 public class TelephonyProvider extends ContentProvider
 {
@@ -947,11 +948,13 @@ public class TelephonyProvider extends ContentProvider
 
     private boolean containsSensitiveFields(String sqlStatement) {
         try {
-            SqlTokenFinder.findTokens(sqlStatement, s -> {
-                switch (s) {
-                    case USER:
-                    case PASSWORD:
-                        throw new SecurityException();
+            SqlTokenFinder.findTokens(sqlStatement, new Consumer<String>() {
+                public void accept(String s) {
+                    switch (s) {
+                        case USER:
+                        case PASSWORD:
+                            throw new SecurityException();
+                    }
                 }
             });
         } catch (SecurityException e) {
